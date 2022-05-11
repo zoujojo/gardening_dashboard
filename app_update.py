@@ -1,10 +1,10 @@
-
 # -*- coding: utf-8 -*-
 """
-Created on Thu May  5 16:12:11 2022
-MA705 Final Project - Creating a Dashboard
+Created on Tue May 10 23:01:51 2022
+
 @author: zoujo
 """
+
 
 import dash
 from dash import dcc, html, dash_table
@@ -95,13 +95,22 @@ app.layout = html.Div([
                 ],
              style={'width': '40%', 'float' : 'left', 'display': 'inline-block'}),
     
-    html.Div( 
+    # show the "0 result. pls select again" or "number of results" message
+    html.Div(
              children=[
                  html.H5( 
                          id='output_box',
-                         style={'textAlign' : 'Center'}),
+                         style={'textAlign' : 'Center'})], 
+             
+             style={'width': '60%', 'float' : 'right', 'display': 'inline-block'}),
+    
+    html.Div(id="graph-container",  
+             children=[
+                 # html.H5( 
+                 #         id='output_box',
+                 #         style={'textAlign' : 'Center'}),
                  
-                 # html.P(id='err'),
+                 # # html.P(id='err'),
                  dcc.Graph(figure=fig, id='plot')], 
              
              style={'width': '60%', 'float' : 'right', 'display': 'inline-block'}),
@@ -168,9 +177,60 @@ def update_table(exposures, water_needs, maintenances):
     
     return data, columns
 
+# show message
+@app.callback(
+    Output("output_box", "children"),
+    [Input("dropdown_1", "value"),
+    Input("dropdown_2", "value"),
+    Input("dropdown_3", "value")]
+)
+
+
+def update_out_box(exposures, water_needs, maintenances):
+    df_selected = df[(df["Exposure"] == exposures) & 
+                     (df["Water Needs"] == water_needs) &
+                     (df["Maintenance"] == maintenances)]
+    
+    df_type = df_selected.groupby("Plant Type").count().reset_index().iloc[:,0:2]
+    df_type = df_type.rename(columns={"Name": "Count"})
+    number = sum(df_type.Count)
+    
+    if number == 0:   
+        message = 'No plant to show. Please choose a different set of parameters.'
+    elif number == 1:
+        message = "There are " + str(number) + " plant matching your search criteria." 
+    else:
+        message = "There are " + str(number) + " plants matching your search criteria."
+    
+    return message    
+
+
+# hide plot or not
+@app.callback(
+    Output("graph-container", "style"),
+    [Input("dropdown_1", "value"),
+    Input("dropdown_2", "value"),
+    Input("dropdown_3", "value")]
+)
+
+def hide_graph(exposures, water_needs, maintenances):
+    df_selected = df[(df["Exposure"] == exposures) & 
+                     (df["Water Needs"] == water_needs) &
+                     (df["Maintenance"] == maintenances)]
+    
+    df_type = df_selected.groupby("Plant Type").count().reset_index().iloc[:,0:2]
+    df_type = df_type.rename(columns={"Name": "Count"})
+    number = sum(df_type.Count)
+    
+    if number == 0:
+        return {'display':'none'}
+    else:
+        return {'display':'block'}
+
+# update plot
 @app.callback(
     Output("plot", "figure"),
-    Output("output_box", "children"),
+    # Output("output_box", "children"),
     [Input("dropdown_1", "value"),
     Input("dropdown_2", "value"),
     Input("dropdown_3", "value")]
@@ -184,22 +244,13 @@ def update_plot(exposures, water_needs, maintenances):
     
     df_type = df_selected.groupby("Plant Type").count().reset_index().iloc[:,0:2]
     df_type = df_type.rename(columns={"Name": "Count"})
-    number = sum(df_type.Count)
+    # number = sum(df_type.Count)
     
     fig = px.pie(df_type, values='Count', names='Plant Type')
     fig.update_traces(textposition='inside')
     fig.update_layout(uniformtext_minsize=12, uniformtext_mode='hide')
     
-    if number == 0:
-        fig = None,
-        message = 'No plant to show. Please choose a different set of parameters.'
-    elif number == 1:
-        message = "There are " + str(number) + " plant matching your search criteria." 
-    else:
-        message = "There are " + str(number) + " plants matching your search criteria."
-    
-    return fig, message
-    
+    return fig
 
 
 if __name__ == '__main__':
